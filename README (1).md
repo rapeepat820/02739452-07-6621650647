@@ -1,20 +1,20 @@
 # 02739452 – ระบบรวบรวมราคาหนังสือคอมพิวเตอร์/โปรแกรมมิ่งจากหลายร้าน
 
 > วิชา แพลตฟอร์มข้อมูลขนาดใหญ่และการวิเคราะห์ (02739452) – ข้อสอบปลายภาค ภาคต้น 2569
-> ผู้จัดทำ: รพีภัทร หงษ์วิชุลดา 6621650647 ลำดับนิสิต 07 820
+> ผู้จัดทำ: **รพีภัทร หงษ์วิชุลดา / รหัสนิสิต 6621650647 / หมู่ 820 (ลำดับที่ 07)**
 
 ## หัวข้อ
 | รายการ | รายละเอียด |
 |---|---|
 | หมวด | ราคาหนังสือ |
-| ขอบเขต | หนังสือ**ฉบับเล่ม (ปกอ่อน)** หมวดคอมพิวเตอร์/โปรแกรมมิ่ง (Python, Data, AI, SQL ฯลฯ) ← ปรับให้ตรงกับที่จองในไลน์ |
+| ขอบเขต | หนังสือ Python and Data Science (ภาษาไทยและอังกฤษ) **ฉบับเล่ม** (ดูหมายเหตุในหัวข้อ "ข้อจำกัดที่ทราบ" เรื่องข้อมูลที่เก็บได้กว้างกว่าขอบเขต) |
 | คีย์กลาง | **ISBN-13** (ตรวจ check digit, รองรับ ISBN-10 โดยแปลงเป็น 13) |
 
 ## แหล่งข้อมูลที่ใช้งานจริง
 | แหล่ง | รหัสใน DAG | วิธีได้ URL หน้าสินค้า | ข้อมูลที่ได้ |
 |---|---|---|---|
 | **Se-ed** (https://www.se-ed.com) | `seed` | ดึงรายชื่อ URL จาก sitemap ของร้านเอง แล้วกรองเฉพาะหนังสือเล่มหมวดคอมพิวเตอร์ (`scripts/build_seeds.py` → `dags/bookpipeline/seeds/seed.txt`) | ISBN (จาก JSON-LD `sku`), ชื่อ, ราคา, สถานะสต็อก |
-| **Naiin** (https://www.naiin.com) | `naiin` | รายการ URL หน้าสินค้าที่รวบรวมไว้ใน `dags/bookpipeline/seeds/naiin.txt` | ISBN (จากช่อง "บาร์โค้ด"), ชื่อ, ราคา, ราคาปก, สำนักพิมพ์ |
+| **Naiin** (https://www.naiin.com) | `naiin` | URL หน้าสินค้า 2 รายการที่กำหนดใน `dags/bookpipeline/config.py` (ส่วน `naiin` → `seeds`) | ISBN (จากช่อง "บาร์โค้ด"), ชื่อ, ราคา, ราคาปก, สำนักพิมพ์ |
 
 การดึงข้อมูล: `requests` + `BeautifulSoup` (**ไม่ใช้ Selenium**) อ่าน JSON-LD (`offers.price`, `sku`) และข้อความในหน้าสินค้า
 
@@ -62,6 +62,15 @@
 - แถวเสีย ≤ 25% และแถวรวม ≥ 20 → **promote_valid**: UPSERT แถวดีเข้า `book_prices` แถวเสียไป `rejected_rows`
 - นอกเกณฑ์ → **quarantine_batch**: ไม่แตะตารางหลัก ส่งทั้งชุดไป `rejected_rows` พร้อมเหตุผล
 
+## ผลการรัน (รอบล่าสุด)
+| รายการ | ค่า |
+|---|---|
+| แถวที่รวบรวมได้ (staged) | 230 |
+| เข้าตารางหลัก `book_prices` | **225** (ตามข้อกำหนดไม่น้อยกว่า 100 รายการ) |
+| ถูกปฏิเสธ (`invalid_isbn`) | 5 |
+| ISBN ไม่ซ้ำ (`books_unique`) | 224 |
+| ISBN ที่ขายทั้งสองร้าน | 1 |
+
 ## วิธีรัน
 ต้องมี Docker + Docker Compose
 
@@ -101,7 +110,7 @@ python scripts/diagnose.py <url>            # ดู robots.txt + ลิงก�
 python scripts/sitemap.py <sitemap-url>     # ดูโครงสร้าง sitemap
 python scripts/sitemap_search.py "<คำค้น>" <sitemap-url> ...   # ค้นชื่อหนังสือใน sitemap
 python scripts/build_seeds.py               # กรอง URL เป็นไฟล์ seed ของ Se-ed
-python scripts/add_naiin_seeds.py           # แปลง naiin_urls.txt เป็นไฟล์ seed ของ Naiin
+python scripts/add_naiin_seeds.py           # (ทางเลือก) แปลง naiin_urls.txt เป็นไฟล์ seed ของ Naiin
 ```
 ถ้าร้านใดตอบ 403 หรือ robots.txt ห้ามเก็บ ให้เปลี่ยนแหล่ง อย่าพยายามเลี่ยง
 
@@ -115,7 +124,7 @@ pip install -r requirements.txt && python -m pytest -q tests
 dags/
   book_price_pipeline.py      # DAG
   bookpipeline/               # config, scraper, parsers, transform, quality, storage, schema.sql
-  bookpipeline/seeds/         # seed.txt (Se-ed), naiin.txt (Naiin)
+  bookpipeline/seeds/         # seed.txt (รายการ URL หนังสือของ Se-ed)
 web/app.py                    # Streamlit dashboard
 docker-compose.yml  Dockerfile.airflow  web/Dockerfile
 requirements.txt  .env.example
@@ -123,6 +132,9 @@ scripts/  tests/  docs/
 ```
 
 ## ข้อจำกัดที่ทราบ
+- ข้อมูลที่เก็บได้**กว้างกว่าขอบเขตที่จอง** (Python and Data Science) เพราะรวมหนังสือโปรแกรมมิ่งทั่วไปด้วย เช่น Java, SQL, Linux เพื่อให้ได้ข้อมูลไม่น้อยกว่า 100 รายการ ปรับได้ที่ `SCOPE_KEYWORDS` ใน `.env`
+- ฝั่ง Naiin มีข้อมูลน้อย (2 รายการ) เพราะหน้าค้นหาวาดด้วย JavaScript และ sitemap ถูกห้ามตาม robots.txt จึงใช้ได้เฉพาะ URL ที่กำหนดเอง
+- ตารางเปรียบเทียบข้ามร้านบนเว็บอาจแสดง ISBN เดียวกันเป็น 2 แถว หากชื่อเรื่องต่างกันระหว่างร้าน
 - ราคาในแต่ละร้านเป็นราคา ณ เวลาที่ดึง (`scraped_at`) อาจเป็นราคาลดไม่ใช่ราคาปก
 - หน้าสินค้า Se-ed ไม่มีราคาปกและสำนักพิมพ์ใน HTML (คอลัมน์ `list_price` และ `publisher` จึงว่างสำหรับ Se-ed) ส่วนตัวกรองสำนักพิมพ์และ KPI ส่วนลดจึงอาศัยข้อมูลจาก Naiin
 - โครงสร้างหน้าเว็บร้านค้าเปลี่ยนได้ ถ้า parser ได้ข้อมูลน้อยลง ระบบจะเข้าเส้นทาง quarantine แทนที่จะเขียนข้อมูลเสียลงตารางหลัก
