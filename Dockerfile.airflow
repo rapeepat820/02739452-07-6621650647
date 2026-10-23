@@ -1,0 +1,5 @@
+FROM apache/airflow:2.9.3-python3.11
+COPY requirements-airflow.txt /tmp/requirements-airflow.txt
+RUN pip install --no-cache-dir -r /tmp/requirements-airflow.txt
+# โฟลเดอร์พักไฟล์ระหว่าง task (สร้างก่อน mount volume เพื่อให้สิทธิ์เป็นของ user airflow)
+RUN mkdir -p /opt/airflow/data

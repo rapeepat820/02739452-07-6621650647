@@ -1,0 +1,4 @@
+# รวม dependency ทั้งหมดของโปรเจกต์ (Airflow เองมากับ image apache/airflow)
+-r requirements-airflow.txt
+-r requirements-web.txt
+pytest>=8
